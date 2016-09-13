@@ -410,7 +410,6 @@ public class CancerData {
 	public static void main(String[] args) throws Exception {
 		CancerData cancerData = new CancerData();
 		cancerData.loadCancerData();
-//		cancerData.checkDataConsistency();
 //		cancerData.getAmbientNoises();
 //		cancerData.getCDFExpVal();
 		
