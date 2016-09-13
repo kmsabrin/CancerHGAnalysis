@@ -215,12 +215,10 @@ public class CancerData {
 		System.out.println((konflict429 / multiprobeGenes) + "\t" + (konflictNC / multiprobeGenes));
 	}
 	
-	public void checkDataConsistency() {
+	public void checkMicroarrayReplicaConsistency() {
 		checkOffData(expData429);
 		System.out.println("\n\n");
 		checkOffData(expDataNC);
-		
-//		checkProbesetConsistency();
 	}
 	
 	private void normalizeDataHelper(HashMap<String, ArrayList<Double>> expValues) {
