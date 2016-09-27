@@ -1,9 +1,9 @@
 import java.io.File;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Scanner;
 import java.util.TreeMap;
 
@@ -11,37 +11,64 @@ import org.apache.commons.math3.stat.StatUtils;
 
 
 public class CancerData {
+	int nProbeSets;
+	int nReplicas = 9;
+	int nStages = 6;
+	int nTransitions = 5;
+	double transitionThreshold = 2.5;
+
 	HashMap<String, ArrayList<Double>> expData429;
 	HashMap<String, ArrayList<Double>> expDataNC;
-//	HashMap<String, ArrayList<Double>> normalizedExpValues429;
-//	HashMap<String, ArrayList<Double>> normalizedExpValuesNC;
-//	HashMap<String, ArrayList<Double>> stageValues429;
-//	HashMap<String, ArrayList<Double>> stageValuesNC;
+	HashMap<String, ArrayList<Double>> ncN429;
+
 	HashMap<String, ArrayList<Double>> transitionDeltas429;
 	HashMap<String, ArrayList<Double>> transitionDeltasNC;
+	HashMap<String, ArrayList<Double>> transitionDeltasNCn429;
+	
 	HashMap<String, HashSet<String>> geneProbesetMap;
 	HashMap<String, String> probesetGeneMap;
 	
 	HashMap<Integer, HashSet<String>> transitoryGenes429;
 	HashMap<Integer, HashSet<String>> transitoryGenesNC;
-	
-	int[] hourStartIndices = {0, 3, 6, 9, 12, 15};
-	int nProbeSets;
-	int nReplicas = 3;
-	int nStages = 6;
-	int nTransitions = 5;
-	
-	ArrayList<Double> ambientNoiseDistribution;
-	ArrayList<Double> transitionDeltaDistribution;
-	
-	double transitionThreshold = 2.5;
+	HashMap<Integer, HashSet<String>> transitoryGenesNCn429;
 	
 	double stageNoiseStD429[] = new double[nStages];
 	double stageNoiseStDNC[] = new double[nStages];
+	double stageNoiseStDNCn429[] = new double[nStages];
+	
+	ArrayList<Double> ambientNoiseDistribution;
+	ArrayList<Double> transitionDeltaDistribution;
+		
+	ArrayList<String> emtGenes;
+	HashMap<String, Integer> emtGeneTransition429;
+	HashMap<String, Integer> emtGeneTransitionNC;
+	HashMap<String, Integer> emtGeneTransitionNCn429;
+	
+		
+	private void getNCn429() {
+		int oReplica = 3;
+		for (String s: expData429.keySet()) {
+			ncN429.put(s, new ArrayList<Double>());
+			for (int stage = 0; stage < nStages; ++stage) {
+				List<Double> list429 = expData429.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
+				List<Double> listNC = expDataNC.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
+				for (double d429: list429) {
+					for (double dNC: listNC) {
+						ncN429.get(s).add(d429 - dNC);
+//						if (s.equals("1053_at")) {
+//							System.out.println(stage + " : " + (d429 - dNC) + " # " + d429 + " # " + dNC );
+//						}
+					}
+				}
+			}
+		}
+	}
 	
 	public CancerData() {
 		expData429 = new HashMap();
 		expDataNC = new HashMap();
+		ncN429 = new HashMap();
+		
 		geneProbesetMap = new HashMap();
 		probesetGeneMap = new HashMap();
 		
@@ -50,9 +77,16 @@ public class CancerData {
 		transitionDeltaDistribution = new ArrayList();
 		transitionDeltas429 = new HashMap();
 		transitionDeltasNC = new HashMap();
+		transitionDeltasNCn429 = new HashMap();
 		
 		transitoryGenes429 = new HashMap();
 		transitoryGenesNC = new HashMap();
+		transitoryGenesNCn429 = new HashMap();
+		
+		emtGenes = new ArrayList();
+		emtGeneTransition429 = new HashMap();
+		emtGeneTransitionNC = new HashMap();
+		emtGeneTransitionNCn429 = new HashMap();
 	}
 	
 	public void insertMappedList(HashMap<String, ArrayList<Double>> mappedList, String key, Double value) {
@@ -77,8 +111,6 @@ public class CancerData {
 				}
 			}
 		}
-		
-		
 	}
 	
 	public void getCDFExpVal() throws Exception {
@@ -126,6 +158,36 @@ public class CancerData {
 		}
 	}
 	
+	private void getCDFNoiseDistributionHelper(int stage,
+			double dist[],
+			String type) throws Exception {
+		TreeMap<Double, Double> histogram = new TreeMap();
+		for (double d : dist) {
+			if (histogram.containsKey(d)) {
+				double v = histogram.get(d);
+				histogram.put(d, v + 1);
+			} else {
+				histogram.put(d, 1.0);
+			}
+		}
+		
+		double cumSum = 0;
+		PrintWriter pw = new PrintWriter(new File("noiseCDF-" + stage + "-" +  type + ".txt"));
+		for (double d: histogram.keySet()) {
+			cumSum += histogram.get(d);
+			pw.println(d + "\t" + (cumSum / dist.length));
+		}
+		pw.close();
+	}
+	
+	private void loadEMTGenes() throws Exception {
+		Scanner scanner = new Scanner(new File("CancerData//EMT_genes.txt"));
+		while (scanner.hasNextLine()) {
+			emtGenes.add(scanner.nextLine());
+		}
+		scanner.close();
+	}
+	
 	public void loadCancerData() throws Exception {
 		Scanner scanner = new Scanner(new File("CancerData//entire_dataset.txt"));
 		
@@ -150,7 +212,8 @@ public class CancerData {
 			for (int i = 20; i <= 34; ++i) {
 				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[i]));
 			}
-			//special correction for nc-3h-0
+			
+			// special correction for nc-3h-0
 			expDataNC.get(probeSetId).set(3, (expDataNC.get(probeSetId).get(4) + expDataNC.get(probeSetId).get(5)) * 0.5);
 			
 			if (geneProbesetMap.containsKey(gene)) {
@@ -166,11 +229,18 @@ public class CancerData {
 		}
 		
 //		System.out.println(geneProbesetMap.size());
-		scanner.close();
+		scanner.close();	
+		
+		loadEMTGenes();
+		
+		if (nReplicas > 3) {
+			getNCn429();
+		}
 	}
 	
 	private void checkOffData(HashMap<String, ArrayList<Double>> expValues) {
-		for (int hourIndex: hourStartIndices) {
+		for (int stage = 0; stage <nStages; ++stage) {
+			int hourIndex = stage * nReplicas;
 			double leftGapValues[] = new double[nProbeSets];
 			double rightGapValues[] = new double[nProbeSets];
 			int idx1 = 0;
@@ -261,7 +331,8 @@ public class CancerData {
 	}
 	
 	private void normalizeDataHelper(HashMap<String, ArrayList<Double>> expValues) {
-		for (int hourIndex: hourStartIndices) {
+		for (int stage = 0; stage <nStages; ++stage) {
+			int hourIndex = stage * nReplicas;			
 			for (int replicaIndex = 0; replicaIndex < nReplicas; ++replicaIndex) {
 				double cumSum = 0;
 				for (String probeSetId: expValues.keySet()) {
@@ -283,7 +354,8 @@ public class CancerData {
 	}
 	
 	private void ambientNoisesHelper(HashMap<String, ArrayList<Double>> expValues) {
-		for (int hourIndex: hourStartIndices) {
+		for (int stage = 0; stage <nStages; ++stage) {
+			int hourIndex = stage * nReplicas;
 			for (String probeSetId: expValues.keySet()) {
 				double replicatedExpValues[] = new double[nReplicas];
 				int idx = 0;
@@ -308,29 +380,38 @@ public class CancerData {
 		}
 	}
 	
-	private double stageNoiseDistributionHelper(int stage, HashMap<String, ArrayList<Double>> expValues) {
-		double noiseDistribution[] = new double[expValues.size() * 3];
+	private double stageNoiseDistributionHelper(int stage, HashMap<String, ArrayList<Double>> expValues, String id) throws Exception {
+		double noiseDistribution[] = new double[expValues.size() * nReplicas];
 		int k = 0;
 		for (String probeSetId: expValues.keySet()) {
 			double replicatedExpValues[] = new double[nReplicas];
 			int idx = 0;
 			double avg = 0;
-			for(double d: expValues.get(probeSetId).subList(hourStartIndices[stage], hourStartIndices[stage] + nReplicas)) {
+			for (double d: expValues.get(probeSetId).subList(stage * nReplicas, (stage + 1) * nReplicas)) {
 				replicatedExpValues[idx++] = d;
 				avg += d;
 			}
 			avg /= nReplicas;
-			noiseDistribution[k++] = avg - replicatedExpValues[0];
-			noiseDistribution[k++] = avg - replicatedExpValues[1];
-			noiseDistribution[k++] = avg - replicatedExpValues[2];
+			for (int i = 0; i < nReplicas; ++i) {
+				noiseDistribution[k++] = avg - replicatedExpValues[i];
+			}
 		}
+		
+//		getCDFNoiseDistributionHelper(stage, noiseDistribution, id);
 		return Math.sqrt(StatUtils.variance(noiseDistribution));
 	}
 	
-	public void getStageNoiseDistribution() {
+	public void getStageNoiseDistribution() throws Exception {
 		for (int i = 0; i < nStages; ++i) {
-			stageNoiseStD429[i] =  stageNoiseDistributionHelper(i, expData429);
-			stageNoiseStDNC[i] =  stageNoiseDistributionHelper(i, expDataNC);
+			if (nReplicas > 3) {
+				stageNoiseStDNCn429[i] =  stageNoiseDistributionHelper(i, ncN429, "NCn429");
+//				System.out.println("(S)igma stage: " + i + " ncN429: " + stageNoiseStDNCn429[i]);
+			}
+			else {
+				stageNoiseStD429[i] =  stageNoiseDistributionHelper(i, expData429, "m429");
+				stageNoiseStDNC[i] =  stageNoiseDistributionHelper(i, expDataNC, "NC");
+//				System.out.println("(S)igma stage: " + i + " m429: " + stageNoiseStD429[i]  + " nC: " + stageNoiseStDNC[i]);
+			}
 		}
 	}
 	
@@ -354,17 +435,32 @@ public class CancerData {
 	}
 	
 	public void getTransitionDeltas() throws Exception {
-		getTransitionDeltasHelper(expData429, transitionDeltas429);
-		getTransitionDeltasHelper(expDataNC, transitionDeltasNC);
-		
-		PrintWriter pw = new PrintWriter(new File("deltaDistributionNorm.txt"));
-		double deltaDistributionArray[] = new double[transitionDeltaDistribution.size()];
-		for (int idx = 0; idx < transitionDeltaDistribution.size(); ++idx) {
-			deltaDistributionArray[idx] = transitionDeltaDistribution.get(idx);
-//			System.out.println(deltaDistributionArray[idx]);
-			pw.println(deltaDistributionArray[idx]);
+		if (nReplicas > 3) {
+			getTransitionDeltasHelper(ncN429, transitionDeltasNCn429);
 		}
-		pw.close();
+		else {
+			getTransitionDeltasHelper(expData429, transitionDeltas429);
+			getTransitionDeltasHelper(expDataNC, transitionDeltasNC);
+		}	
+
+//		double deltaDistributionArray[] = new double[transitionDeltaDistribution.size()];
+//		for (int idx = 0; idx < transitionDeltaDistribution.size(); ++idx) {
+//			deltaDistributionArray[idx] = transitionDeltaDistribution.get(idx);
+//		}
+//		System.out.println(deltaDistributionArray.length);
+//		System.out.println(StatUtils.mean(deltaDistributionArray) + "\t" + Math.sqrt(StatUtils.variance(deltaDistributionArray)));
+//		System.out.println(StatUtils.percentile(deltaDistributionArray, 50));
+
+		
+//		PrintWriter pw = new PrintWriter(new File("deltaDistributionNorm.txt"));
+//		double deltaDistributionArray[] = new double[transitionDeltaDistribution.size()];
+//		for (int idx = 0; idx < transitionDeltaDistribution.size(); ++idx) {
+//			deltaDistributionArray[idx] = transitionDeltaDistribution.get(idx);
+////			System.out.println(deltaDistributionArray[idx]);
+//			pw.println(deltaDistributionArray[idx]);
+//		}
+//		pw.close();
+		
 //		System.out.println(deltaDistributionArray.length);
 //		System.out.println(StatUtils.mean(deltaDistributionArray) + "\t" + Math.sqrt(StatUtils.variance(deltaDistributionArray)));
 //		System.out.println(StatUtils.percentile(deltaDistributionArray, 95));
@@ -382,30 +478,30 @@ public class CancerData {
 	public void getTransitionDeltasHelper(HashMap<String, ArrayList<Double>> expValues, HashMap<String, ArrayList<Double>> deltaValues) {
 		for (String probeSetId: expValues.keySet()) {
 			deltaValues.put(probeSetId, new ArrayList<Double>());
-			for (int idx = 0; idx < hourStartIndices.length - 1; ++idx) {
-				int h0 = hourStartIndices[idx];
+			for (int stage = 0; stage < nStages - 1; ++stage) {
+				int h0 = stage * nReplicas;
 				double replicatedExpValuesH0[] = new double[nReplicas];
-				int idx2 = 0;
-				double avgH0 = 0;
+				int idx = 0;
+//				double avgH0 = 0;
 				for(double d: expValues.get(probeSetId).subList(h0, h0 + nReplicas)) {
-					replicatedExpValuesH0[idx2++] = d;
-					avgH0 += d;
+					replicatedExpValuesH0[idx++] = d;
+//					avgH0 += d;
 //					System.out.println(d);
 				}
-				avgH0 /= nReplicas;
+//				avgH0 /= nReplicas;
 //				avgH0 = StatUtils.percentile(replicatedExpValuesH0, 50);
 //				System.out.println("avg: " + avgH0);
 				
-				int h1 = hourStartIndices[idx + 1];
+				int h1 = (stage + 1) * nReplicas;
 				double replicatedExpValuesH1[] = new double[nReplicas];
-				idx2 = 0;
-				double avgH1 = 0;
+				idx = 0;
+//				double avgH1 = 0;
 				for(double d: expValues.get(probeSetId).subList(h1, h1 + nReplicas)) {
-					replicatedExpValuesH1[idx2++] = d;
-					avgH1 += d;
+					replicatedExpValuesH1[idx++] = d;
+//					avgH1 += d;
 //					System.out.println(d);
 				}
-				avgH1 /= nReplicas;
+//				avgH1 /= nReplicas;
 //				avgH1 = StatUtils.percentile(replicatedExpValuesH1, 50);
 //				System.out.println("--- --- ---");
 				
@@ -416,13 +512,13 @@ public class CancerData {
 //						if (replicatedExpValuesH0[i] > replicatedExpValuesH1[j]) {
 //							continue;
 //						}
-						double delta = replicatedExpValuesH0[i] - replicatedExpValuesH1[j];
+						double delta = (replicatedExpValuesH0[i] - replicatedExpValuesH1[j]);
 						deltaArray[k++] = delta;
 						transitionDeltaDistribution.add(delta);
 //						transitionDeltaDistribution.add(Math.abs(avgH0 - avgH1));
 					}
 				}
-				deltaArray = Arrays.copyOfRange(deltaArray, 0, k);
+//				deltaArray = Arrays.copyOfRange(deltaArray, 0, k); // for nc-3a // fixed
 				deltaValues.get(probeSetId).add(StatUtils.percentile(deltaArray, 50));
 //				deltaValues.get(probeSetId).add(Math.abs(avgH0 - avgH1));
 //				System.out.println(probeSetId + "\t" + h0 + "\t" + Math.abs(avgH0 - avgH1));
@@ -450,15 +546,29 @@ public class CancerData {
 	
 	public void getTransitoryGenes() {
 		for (int i = 0; i < nTransitions; ++i) {
-			transitoryGenes429.put(i, new HashSet<String>());
-			transitoryGenesNC.put(i, new HashSet<String>());
+			if (nReplicas > 3) {
+				transitoryGenesNCn429.put(i, new HashSet<String>());
+			}
+			else {
+				transitoryGenesNC.put(i, new HashSet<String>());
+				transitoryGenes429.put(i, new HashSet<String>());
+			}
 		}
 		
 		boolean once = true;
-		for (String probeSetId: transitionDeltas429.keySet()) {
-			ArrayList<Double> deltas429 = transitionDeltas429.get(probeSetId);
-			ArrayList<Double> deltasNC = transitionDeltasNC.get(probeSetId);
+		ArrayList<Double> deltasNCn429 = null;
+		ArrayList<Double> deltas429 = null;
+		ArrayList<Double> deltasNC = null;
+		for (String probeSetId: expData429.keySet()) {
+			if (nReplicas > 3) {
+				deltasNCn429 = transitionDeltasNCn429.get(probeSetId);
+			}
+			else {
+				deltas429 = transitionDeltas429.get(probeSetId);
+				deltasNC = transitionDeltasNC.get(probeSetId);
+			}
 			for (int i = 0; i < nTransitions; ++i) {
+				
 				/*
 				if (Math.abs(deltas429.get(i)) > transitionThreshold) {
 					transitoryGenes429.get(i).add(probesetGeneMap.get(probeSetId));
@@ -467,45 +577,139 @@ public class CancerData {
 					transitoryGenesNC.get(i).add(probesetGeneMap.get(probeSetId));
 				}
 				*/
+				
 				double w = 2;
-				double threshold429 = w * (stageNoiseStD429[i] + stageNoiseStD429[i + 1]);
-//				threshold429 = transitionThreshold;
-				if (Math.abs(deltas429.get(i)) > threshold429) {
-					transitoryGenes429.get(i).add(probesetGeneMap.get(probeSetId));
+				double thresholdNC = transitionThreshold;
+				double threshold429 = transitionThreshold;
+				double thresholdNCn429 = transitionThreshold;
+				
+				if (nReplicas > 3) {
+					thresholdNCn429 = w * (stageNoiseStDNCn429[i] + stageNoiseStDNCn429[i + 1]);
+					if (Math.abs(deltasNCn429.get(i)) > thresholdNCn429) {
+						transitoryGenesNCn429.get(i).add(probesetGeneMap.get(probeSetId));
+					}
 				}
-				double thresholdNC = w * (stageNoiseStDNC[i] + stageNoiseStDNC[i + 1]);
-//				thresholdNC = transitionThreshold;
-				if (Math.abs(deltasNC.get(i)) > thresholdNC) {
-					transitoryGenesNC.get(i).add(probesetGeneMap.get(probeSetId));
+				else {
+					threshold429 = w * (stageNoiseStD429[i] + stageNoiseStD429[i + 1]);
+					if (Math.abs(deltas429.get(i)) > threshold429) {
+						transitoryGenes429.get(i).add(probesetGeneMap.get(probeSetId));
+					}
+				
+					thresholdNC = w * (stageNoiseStDNC[i] + stageNoiseStDNC[i + 1]);
+					if (Math.abs(deltasNC.get(i)) > thresholdNC) {
+						transitoryGenesNC.get(i).add(probesetGeneMap.get(probeSetId));
+					}
 				}
 				
 				if (once == true) {
-					System.out.println(threshold429);
-					System.out.println(thresholdNC);
+					if (nReplicas > 3) {
+						System.out.println(thresholdNCn429);
+					}
+					else {
+						System.out.println(threshold429);
+						System.out.println(thresholdNC);
+					}
 				}
 			}
 			once = false;
 		}
 		
 		for (int i = 0; i < nTransitions; ++i) {
-			double down429 = getUpDownRegulation(i, transitoryGenes429, transitionDeltas429);
-			double downNC = getUpDownRegulation(i, transitoryGenesNC, transitionDeltasNC);
-			System.out.println(transitoryGenes429.get(i).size() + "\t" + (down429 / transitoryGenes429.get(i).size())
+			if (nReplicas > 3) {
+				double downNCn429 = getUpDownRegulation(i, transitoryGenesNCn429, transitionDeltasNCn429);
+				System.out.println(transitoryGenesNCn429.get(i).size() + "\t" + (downNCn429 / transitoryGenesNCn429.get(i).size()));
+				compareEMTGenes(i, transitoryGenesNCn429, "Ncn429");
+			}
+			else {
+				double down429 = getUpDownRegulation(i, transitoryGenes429, transitionDeltas429);
+				double downNC = getUpDownRegulation(i, transitoryGenesNC, transitionDeltasNC);
+				System.out.println(transitoryGenes429.get(i).size() + "\t" + (down429 / transitoryGenes429.get(i).size())
 					+ "\t" + transitoryGenesNC.get(i).size() + "\t" + (downNC / transitoryGenesNC.get(i).size()));
 			
-			if (transitoryGenes429.get(i).size() < 30) {
-				for (String s: transitoryGenes429.get(i)) {
-					System.out.println(s);
-				}
-				System.out.println("## ## ##");
+//				if (transitoryGenes429.get(i).size() < 30) {
+//					for (String s : transitoryGenes429.get(i)) {
+//						System.out.println(s);
+//					}
+//					System.out.println("## ## ##");
+//				}
+//
+//				if (transitoryGenesNC.get(i).size() < 65) {
+//					int oe = 0;
+//					for (String s : transitoryGenesNC.get(i)) {
+//						if (oe % 2 == 0) {
+//							System.out.print(s + " & ");
+//						} else {
+//							System.out.println(s + "\\\\");
+//						}
+//						++oe;
+//					}
+//					System.out.println("** ** **");
+//				}
+				
+				compareEMTGenes(i, transitoryGenes429, "m429");
+				compareEMTGenes(i, transitoryGenesNC, "NC");
+			}
+		}
+		
+		for (String s: emtGenes) {
+			System.out.print(s + "\t");
+			if (nReplicas > 3) {
+				int v = 0;
+				if (emtGeneTransitionNCn429.containsKey(s)) v = emtGeneTransitionNCn429.get(s);
+				System.out.println(v);
+			}
+			else {
+				int v = 0;
+				if (emtGeneTransition429.containsKey(s)) v = emtGeneTransition429.get(s);
+				System.out.print(v + "\t");
+				v = 0;
+				if (emtGeneTransitionNC.containsKey(s)) v = emtGeneTransitionNC.get(s);
+				System.out.println(v);
+			}
+		}
+	}
+	
+	private void updateEMTTransitionCount(String id, String gene) {
+		HashMap<String, Integer> dummy = null;
+		if (id.equals("NC")) dummy = emtGeneTransitionNC;
+		if (id.equals("m429")) dummy = emtGeneTransition429;
+		if (id.equals("Ncn429")) dummy = emtGeneTransitionNCn429;
+		
+		if (dummy.containsKey(gene)) {
+			dummy.put(gene, 1 + dummy.get(gene));
+		}
+		else {
+			dummy.put(gene, 1);
+		}
+	}
+	
+	private void compareEMTGenes(int transition, HashMap<Integer, HashSet<String>> transitoryGenes, String id) {
+		double kount = 0;
+		for (String gene: transitoryGenes.get(transition)) {
+			if (emtGenes.contains(gene)) {
+				++kount;
+				updateEMTTransitionCount(id, gene);
+			}
+		}
+		System.out.println("For " + id + " and transition " + transition + " contains emt " + (kount / emtGenes.size()));
+	}
+	
+	private void getGeneToProbesetHistogram() {
+		TreeMap<Integer, Integer> geneToProbesetHist = new TreeMap();
+		for (String g: geneProbesetMap.keySet()) {
+			int sz = geneProbesetMap.get(g).size();
+			if (geneToProbesetHist.containsKey(sz)) {
+				geneToProbesetHist.put(sz, geneToProbesetHist.get(sz) + 1);
+			}
+			else {
+				geneToProbesetHist.put(sz, 1);
 			}
 			
-			if (transitoryGenesNC.get(i).size() < 60) {
-				for (String s: transitoryGenesNC.get(i)) {
-					System.out.println(s);
-				}
-				System.out.println("** ** **");
-			}
+			if (geneProbesetMap.get(g).size() > 5000) { System.out.println(g); }
+		}
+		
+		for (int i: geneToProbesetHist.keySet()) {
+			System.out.println(i + "\t" + geneToProbesetHist.get(i));
 		}
 	}
 	
@@ -513,16 +717,16 @@ public class CancerData {
 		CancerData cancerData = new CancerData();
 		cancerData.loadCancerData();
 		
+//		cancerData.getGeneToProbesetHistogram();
 //		cancerData.getCDFExpVal();
 		
-		cancerData.normalizeData();
+//		cancerData.normalizeData();
 //		cancerData.getAmbientNoises();
 		cancerData.getStageNoiseDistribution();
 		
 		cancerData.getTransitionDeltas();
 		
 //		cancerData.checkProbesetConsistency();
-		
 //		cancerData.getCDFDeltas();
 
 		cancerData.getTransitoryGenes();
