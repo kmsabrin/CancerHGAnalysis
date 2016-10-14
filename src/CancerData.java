@@ -189,7 +189,7 @@ public class CancerData {
 	}
 	
 	private void loadEMTGenes() throws Exception {
-		Scanner scanner = new Scanner(new File("CancerData//EMT_genes.txt"));
+		Scanner scanner = new Scanner(new File("CancerData//EMT_genes_X.txt"));
 		while (scanner.hasNextLine()) {
 			String gene = scanner.nextLine();
 			emtGenes.add(gene);
@@ -520,7 +520,9 @@ public class CancerData {
 //					deltaValues.get(probeSetId).add(StatUtils.mean(deltaArray));
 				}
 				else { // special case for first transition
-					for (int i = 0; i < replicatedExpValuesH1.length; ++i) replicatedExpValuesH1[i] = Math.abs(replicatedExpValuesH1[i]);
+					for (int i = 0; i < replicatedExpValuesH1.length; ++i) {
+						replicatedExpValuesH1[i] = Math.abs(replicatedExpValuesH1[i]);
+					}
 					deltaValues.get(probeSetId).add(StatUtils.percentile(replicatedExpValuesH1, 50));
 				}
 			}
@@ -530,13 +532,14 @@ public class CancerData {
 	public void getSignificantStageValues(
 			HashMap<String, ArrayList<Double>> expValues) {
 		for (int stage = 1; stage < nStages; ++stage) {
+			System.out.println("Stage " + stage);
 			HashMap<String, Double> stageValueMap = new HashMap();
 			for (String probeSetId : expValues.keySet()) {
 				int h0 = stage * nReplicas;
 				double replicatedExpValuesH0[] = new double[nReplicas];
 				int idx = 0;
 				for (double d : expValues.get(probeSetId).subList(h0, h0 + nReplicas)) {
-					replicatedExpValuesH0[idx++] = (d);
+					replicatedExpValuesH0[idx++] = Math.abs(d);
 				}
 				double median = StatUtils.percentile(replicatedExpValuesH0, 50);
 				stageValueMap.put(probeSetId, median);
@@ -546,22 +549,35 @@ public class CancerData {
 			double threshold = Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
 			threshold *= w;
 			HashSet<String> emtSet = new HashSet();
-			int transitoryGeneKount = 0;
-			int downGeneKount = 0;
+			HashSet<String> transGeneSet = new HashSet();
+			HashSet<String> downEMTGeneSet = new HashSet();
 			for (String probeSetId : stageValueMap.keySet()) {
 				double v = stageValueMap.get(probeSetId);
 				if (Math.abs(v) < threshold) {
 					continue;
 				}
-				++transitoryGeneKount;
-				if (v < 0) {
-					downGeneKount++;
-				}
+				transGeneSet.add(probesetGeneMap.get(probeSetId));
 				if (emtGenes.contains(probesetGeneMap.get(probeSetId))) {
 					emtSet.add(probesetGeneMap.get(probeSetId));
+					System.out.println(probesetGeneMap.get(probeSetId));
+					if (v < 0) {
+						downEMTGeneSet.add(probesetGeneMap.get(probeSetId));
+					}
 				}
 			}
-			System.out.println(stage + "\t" + transitoryGeneKount + "\t" + downGeneKount + "\t" + emtSet.size());
+//			System.out.println(
+////					stage 
+//					(transGeneSet.size() * 1.0 / geneProbesetMap.size()) 
+//					+ "\t" + transGeneSet.size()
+//					+ "\t" + (emtSet.size() * 1.0 / emtGenes.size())
+//					+ "\t" + emtSet.size()
+//					+ "\t" 
+//					+ (downEMTGeneSet.size() * 1.0 / emtSet.size())); 
+			for (String s: transGeneSet) {
+				System.out.println(s);
+			}
+			
+			System.out.println("### ### ###");
 		}
 	}
 	
@@ -609,7 +625,7 @@ public class CancerData {
 			double wS[] = new double[]{0.5, 0.5, 1, 1.5, 2, 2.5, 3, 3.5};
 			for (int stage = 0; stage < nStages - 1; ++stage) {
 			
-				double w = 0.05;
+				double w = 3.5;
 				double thresholdNC = transitionThreshold;
 				double threshold429 = transitionThreshold;
 				double thresholdNCn429 = transitionThreshold;
@@ -659,8 +675,9 @@ public class CancerData {
 		for (int i = 0; i < nTransitions; ++i) {
 			if (nReplicas > 3) {
 				double downNCn429 = getUpDownRegulation(i, transitoryGenesNCn429, transitionDeltasNCn429);
-				System.out.print((transitoryGenesNCn429.get(i).size() /** 1.0 / geneProbesetMap.size()*/) + 
-						"\t" /*+ (downNCn429 / transitoryGenesNCn429.get(i).size())*/);
+				System.out.print(
+						(transitoryGenesNCn429.get(i).size() * 1.0 / geneProbesetMap.size()) 
+						+ "\t" + transitoryGenesNCn429.get(i).size()); 
 				compareEMTGenes(i, transitoryGenesNCn429, "Ncn429");
 			}
 			else {
@@ -732,11 +749,13 @@ public class CancerData {
 			if (emtGenes.contains(gene)) {
 				++kount;
 				updateEMTTransitionCount(id, gene);
-//				System.out.println(gene);
+				System.out.println(gene);
 			}
 		}
 //		System.out.println("For " + id + " and transition " + transition + " contains emt " + (kount / emtGenes.size()));
-		System.out.println((kount /*/ emtGenes.size()*/));
+		System.out.println(
+				"\t" + (kount / emtGenes.size())
+				+ "\t" + kount);
 	}
 	
 	private void getGeneToProbesetHistogram() {
@@ -783,7 +802,6 @@ public class CancerData {
 
 		cancerData.nReplicas = 9;
 		cancerData.getSignificantStageValues(cancerData.ncN429);
-		
 //		cancerData.getTransitionDeltas();
 //		cancerData.getCDFDeltas();
 		
