@@ -45,6 +45,8 @@ public class CancerData {
 	HashMap<String, Integer> emtGeneTransitionNC;
 	HashMap<String, Integer> emtGeneTransitionNCn429;
 	
+	HashMap<Integer, HashSet<String>> significantStageGenes;
+	
 		
 	private void getNCn429() {
 		int oReplica = 3;
@@ -93,6 +95,8 @@ public class CancerData {
 		emtGeneTransition429 = new HashMap();
 		emtGeneTransitionNC = new HashMap();
 		emtGeneTransitionNCn429 = new HashMap();
+		
+		significantStageGenes = new HashMap();
 	}
 	
 	public void insertMappedList(HashMap<String, ArrayList<Double>> mappedList, String key, Double value) {
@@ -532,7 +536,7 @@ public class CancerData {
 	public void getSignificantStageValues(
 			HashMap<String, ArrayList<Double>> expValues) {
 		for (int stage = 1; stage < nStages; ++stage) {
-			System.out.println("Stage " + stage);
+//			System.out.println("Stage " + stage);
 			HashMap<String, Double> stageValueMap = new HashMap();
 			for (String probeSetId : expValues.keySet()) {
 				int h0 = stage * nReplicas;
@@ -559,7 +563,7 @@ public class CancerData {
 				transGeneSet.add(probesetGeneMap.get(probeSetId));
 				if (emtGenes.contains(probesetGeneMap.get(probeSetId))) {
 					emtSet.add(probesetGeneMap.get(probeSetId));
-					System.out.println(probesetGeneMap.get(probeSetId));
+//					System.out.println(probesetGeneMap.get(probeSetId));
 					if (v < 0) {
 						downEMTGeneSet.add(probesetGeneMap.get(probeSetId));
 					}
@@ -572,12 +576,15 @@ public class CancerData {
 //					+ "\t" + (emtSet.size() * 1.0 / emtGenes.size())
 //					+ "\t" + emtSet.size()
 //					+ "\t" 
-//					+ (downEMTGeneSet.size() * 1.0 / emtSet.size())); 
-			for (String s: transGeneSet) {
-				System.out.println(s);
-			}
+//					+ (downEMTGeneSet.size() * 1.0 / emtSet.size()));
 			
-			System.out.println("### ### ###");
+//			for (String s: transGeneSet) {
+//				System.out.println(s);
+//			}
+//			
+//			System.out.println("### ### ###");
+			
+			significantStageGenes.put(stage, new HashSet(transGeneSet));
 		}
 	}
 	
