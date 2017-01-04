@@ -21,7 +21,7 @@ public class CancerNetwork {
 		miR429Target = new HashSet();
 	}
 	
-	private void loadTRRUSTNetwork() throws Exception {
+	public void loadTRRUSTNetwork() throws Exception {
 		Scanner scan = new Scanner(new File("CancerData/trrust_rawdata.txt"));
 		
 		while (scan.hasNext()) {
@@ -48,7 +48,7 @@ public class CancerNetwork {
 		scan.close();
 	}
 	
-	private void loadmiR429Target() throws Exception {
+	public void loadmiR429Target() throws Exception {
 		Scanner scan = new Scanner(new File("CancerData/mir429_target.txt"));
 		while (scan.hasNext()) {
 			String tgt = scan.next();
@@ -114,6 +114,13 @@ public class CancerNetwork {
 			stageData.significantStageGenes.get(i).removeAll(rmv);
 			stageData.significantStageGenes.get(i).addAll(add);
 		}
+		
+//		for (String s: stageData.significantStageGenes.get(2)) {
+//			System.out.print(s);
+//			if (tfGenes.contains(s)) System.out.print("\t" + "TF");
+//			if (miR429Target.contains(s)) System.out.print("\t" + "target");
+//			System.out.println();
+//		}
 	}
 	
 	private void getNetwork() {
@@ -152,6 +159,10 @@ public class CancerNetwork {
 							else {
 								outKount.put(s_tmp, 1);
 							}
+							
+//							if (i == 1 && j == 2) {
+//								System.out.println(s + "\t" + r);
+//							}
 							
 //							if (r_tmp.equals("ATP1B1_4")) {
 //								System.out.println(s_tmp + "\t" + r_tmp);

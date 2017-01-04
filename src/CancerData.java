@@ -63,9 +63,9 @@ public class CancerData {
 						else {
 							ncN429.get(s).add(d429);
 						}
-//						if (s.equals("1053_at")) {
+						if (stage == 2 && s.equals("1558682_at")) {
 //							System.out.println(stage + " : " + (d429 - dNC) + " # " + d429 + " # " + dNC );
-//						}
+						}
 					}
 				}
 			}
@@ -543,24 +543,30 @@ public class CancerData {
 				double replicatedExpValuesH0[] = new double[nReplicas];
 				int idx = 0;
 				for (double d : expValues.get(probeSetId).subList(h0, h0 + nReplicas)) {
-					replicatedExpValuesH0[idx++] = Math.abs(d);
+//					replicatedExpValuesH0[idx++] = Math.abs(d);
+					replicatedExpValuesH0[idx++] = d;
 				}
 				double median = StatUtils.percentile(replicatedExpValuesH0, 50);
 				stageValueMap.put(probeSetId, median);
+//				if (stage == 2 && probeSetId.equals("208025_s_at")) {
+//					System.out.println(median);
+//				}
 			}
 			
-			double w = 3;
+			double w = 2.5;
 			double threshold = Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
 			threshold *= w;
 			HashSet<String> emtSet = new HashSet();
 			HashSet<String> transGeneSet = new HashSet();
 			HashSet<String> downEMTGeneSet = new HashSet();
+			HashSet<String> stageGenes = new HashSet();
 			for (String probeSetId : stageValueMap.keySet()) {
 				double v = stageValueMap.get(probeSetId);
 				if (Math.abs(v) < threshold) {
 					continue;
 				}
 				transGeneSet.add(probesetGeneMap.get(probeSetId));
+				stageGenes.add(probesetGeneMap.get(probeSetId));
 				if (emtGenes.contains(probesetGeneMap.get(probeSetId))) {
 					emtSet.add(probesetGeneMap.get(probeSetId));
 //					System.out.println(probesetGeneMap.get(probeSetId));
@@ -568,7 +574,29 @@ public class CancerData {
 						downEMTGeneSet.add(probesetGeneMap.get(probeSetId));
 					}
 				}
+				
+				if (stage == 2) {
+//					System.out.println(probeSetId + "\t" + probesetGeneMap.get(probeSetId) + "\t" + v);
+				}
 			}
+			
+			if (stage == 2) {
+//				System.out.println(stageGenes.size());
+				for (String s: stageGenes) {
+					if (s.equals("---")) continue;
+//					System.out.println(s);
+					for (String r: stageValueMap.keySet()) {
+						if (probesetGeneMap.get(r).equals(s)) {
+//							System.out.print(s + "\t" + r + "\t" + stageValueMap.get(r));
+//							if (Math.abs(stageValueMap.get(r)) > threshold) {
+//								System.out.print("\t" + "Significant");
+//							}
+//							System.out.println();
+						}
+					}
+				}
+			}
+			
 //			System.out.println(
 ////					stage 
 //					(transGeneSet.size() * 1.0 / geneProbesetMap.size()) 
