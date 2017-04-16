@@ -12,11 +12,11 @@ import org.apache.commons.math3.stat.StatUtils;
 
 public class CancerData {
 	int nProbeSets;
-	int nReplicas = 9;
+	int nReplicas;
 	int nStages = 6;
 	int nTransitions = 5;
 	double transitionThreshold = 2.5;
-	int nProbesets = 41580;
+//	int nProbesets = 41580;
 
 	HashMap<String, ArrayList<Double>> expData429;
 	HashMap<String, ArrayList<Double>> expDataNC;
@@ -63,9 +63,10 @@ public class CancerData {
 						else {
 							ncN429.get(s).add(d429);
 						}
-						if (stage == 2 && s.equals("1558682_at")) {
+						
+//						if (stage == 2 && s.equals("1558682_at")) {
 //							System.out.println(stage + " : " + (d429 - dNC) + " # " + d429 + " # " + dNC );
-						}
+//						}
 					}
 				}
 			}
@@ -205,6 +206,77 @@ public class CancerData {
 		scanner.close();
 	}
 	
+	public void loadCancerData2() throws Exception {
+//		nProbesets = 54613;
+		Scanner scanner = new Scanner(new File("CancerData//5h_dataset.txt"));
+		scanner.nextLine();
+		while (scanner.hasNextLine()) {
+			String line = scanner.nextLine();
+			String tokens[] = line.split("\t");
+			
+			String probeSetId = tokens[0];
+			String gene = tokens[1];
+			probesetGeneMap.put(probeSetId, gene);
+			
+			// start= 2 (hey)
+			// start=12 (pc3) 
+			int startIdx = 2;
+			for (int i = 0; i <= 1; ++i) {
+				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx + i]));
+				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx + i]));
+			}
+			
+			// making 3 replica by taking the average
+			double startingAvg = (Double.parseDouble(tokens[startIdx]) + Double.parseDouble(tokens[startIdx + 1])) / 2.0;
+			insertMappedList(expData429, probeSetId, startingAvg);
+			insertMappedList(expDataNC, probeSetId, startingAvg);
+
+			// 203= 6, 205= 8, 429=10 (hey)
+			// 203=16, 205=18, 429=20 (pc3)
+			startIdx = 10;
+			for (int i = 0; i < 5 ; ++i) { // for 6 stage compatibility
+				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx]));
+				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx + 1]));
+				double avg = (Double.parseDouble(tokens[startIdx]) + Double.parseDouble(tokens[startIdx + 1])) / 2.0;
+//				avg = Double.parseDouble(tokens[startIdx+1]);
+				insertMappedList(expData429, probeSetId, avg);
+			}
+			
+			// nc = 4 (hey)
+			// nc =14 (pc3)
+			startIdx = 4;
+			for (int i = 0; i < 5; ++i) { // for 6 stage compatibility
+				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx]));
+				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx + 1]));
+				double avg = (Double.parseDouble(tokens[startIdx]) + Double.parseDouble(tokens[startIdx + 1])) / 2.0;
+//				avg = Double.parseDouble(tokens[startIdx+1]);
+				insertMappedList(expDataNC, probeSetId, avg);
+			}
+			
+			// special correction for nc-3h-0
+			// not needed
+//			expDataNC.get(probeSetId).set(3, (expDataNC.get(probeSetId).get(4) + expDataNC.get(probeSetId).get(5)) * 0.5);
+			
+			if (geneProbesetMap.containsKey(gene)) {
+				geneProbesetMap.get(gene).add(probeSetId);
+			}
+			else {
+				HashSet<String> hset = new HashSet();
+				hset.add(probeSetId);
+				geneProbesetMap.put(gene, hset);
+			}
+			
+			++nProbeSets;
+		}
+		
+//		System.out.println(geneProbesetMap.size());
+		scanner.close();	
+		
+		loadEMTGenes();
+		
+		getNCn429();
+	}
+	
 	public void loadCancerData() throws Exception {
 		Scanner scanner = new Scanner(new File("CancerData//entire_dataset.txt"));
 		
@@ -216,6 +288,10 @@ public class CancerData {
 			String probeSetId = tokens[0];
 			String gene = tokens[1];
 			probesetGeneMap.put(probeSetId, gene);
+			
+//			if (gene.equals("ZEB2")) {
+//				System.out.println(probeSetId);
+//			}
 			
 			for (int i = 2; i <= 4; ++i) {
 				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[i]));
@@ -408,6 +484,7 @@ public class CancerData {
 			}
 			avg /= nReplicas;
 			for (int i = 0; i < nReplicas; ++i) {
+				if (Math.abs(avg - replicatedExpValues[i]) < 0.0001) continue; // two replica case;
 				noiseDistribution[k++] = avg - replicatedExpValues[i];
 			}
 		}
@@ -548,12 +625,18 @@ public class CancerData {
 				}
 				double median = StatUtils.percentile(replicatedExpValuesH0, 50);
 				stageValueMap.put(probeSetId, median);
+				
 //				if (stage == 2 && probeSetId.equals("208025_s_at")) {
 //					System.out.println(median);
 //				}
+				
+//				if (probeSetId.equals("203603_s_at")) {
+//					System.out.println("Found at stage " + stage + "\t" + probesetGeneMap.get(probeSetId));
+//					System.out.println(stageValueMap.get(probeSetId));
+//				}
 			}
 			
-			double w = 2.5;
+			double w = 3;
 			double threshold = Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
 			threshold *= w;
 			HashSet<String> emtSet = new HashSet();
@@ -562,6 +645,11 @@ public class CancerData {
 			HashSet<String> stageGenes = new HashSet();
 			for (String probeSetId : stageValueMap.keySet()) {
 				double v = stageValueMap.get(probeSetId);
+				
+//				if (probesetGeneMap.get(probeSetId).equals("CDH1")) {
+//					System.out.println("Stage " + stage + "\t" + probeSetId + "\t" + v + "\t" + threshold);
+//				}
+			    
 				if (Math.abs(v) < threshold) {
 					continue;
 				}
@@ -578,24 +666,25 @@ public class CancerData {
 				if (stage == 2) {
 //					System.out.println(probeSetId + "\t" + probesetGeneMap.get(probeSetId) + "\t" + v);
 				}
+				
 			}
 			
-			if (stage == 2) {
+//			if (stage == 2) {
 //				System.out.println(stageGenes.size());
-				for (String s: stageGenes) {
-					if (s.equals("---")) continue;
+//				for (String s: stageGenes) {
+//					if (s.equals("---")) continue;
 //					System.out.println(s);
-					for (String r: stageValueMap.keySet()) {
-						if (probesetGeneMap.get(r).equals(s)) {
+//					for (String r: stageValueMap.keySet()) {
+//						if (probesetGeneMap.get(r).equals(s)) {
 //							System.out.print(s + "\t" + r + "\t" + stageValueMap.get(r));
 //							if (Math.abs(stageValueMap.get(r)) > threshold) {
 //								System.out.print("\t" + "Significant");
 //							}
 //							System.out.println();
-						}
-					}
-				}
-			}
+//						}
+//					}
+//				}
+//			}
 			
 //			System.out.println(
 ////					stage 
@@ -606,11 +695,11 @@ public class CancerData {
 //					+ "\t" 
 //					+ (downEMTGeneSet.size() * 1.0 / emtSet.size()));
 			
-//			for (String s: transGeneSet) {
+			for (String s: transGeneSet) {
 //				System.out.println(s);
-//			}
-//			
+			}
 //			System.out.println("### ### ###");
+			System.out.println(transGeneSet.size());
 			
 			significantStageGenes.put(stage, new HashSet(transGeneSet));
 		}
@@ -824,7 +913,8 @@ public class CancerData {
 	
 	public static void main(String[] args) throws Exception {
 		CancerData cancerData = new CancerData();
-		cancerData.loadCancerData();
+//		cancerData.loadCancerData();
+		cancerData.loadCancerData2();
 		
 //		cancerData.getGeneToProbesetHistogram();
 //		cancerData.getCDFExpVal();

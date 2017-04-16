@@ -115,12 +115,12 @@ public class CancerNetwork {
 			stageData.significantStageGenes.get(i).addAll(add);
 		}
 		
-//		for (String s: stageData.significantStageGenes.get(2)) {
-//			System.out.print(s);
-//			if (tfGenes.contains(s)) System.out.print("\t" + "TF");
-//			if (miR429Target.contains(s)) System.out.print("\t" + "target");
-//			System.out.println();
-//		}
+		for (String s: stageData.significantStageGenes.get(2)) {
+			System.out.print(s);
+			if (tfGenes.contains(s)) System.out.print("\t" + "TF");
+			if (miR429Target.contains(s)) System.out.print("\t" + "target");
+			System.out.println();
+		}
 	}
 	
 	private void getNetwork() {
@@ -284,12 +284,12 @@ public class CancerNetwork {
 		cancerNet.stageData.nReplicas = 9;
 		cancerNet.stageData.getSignificantStageValues(cancerNet.stageData.ncN429);
 		
-//		for (int i: cancerNet.stageData.significantStageGenes.keySet()) {
-//			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
-//		}
+		for (int i: cancerNet.stageData.significantStageGenes.keySet()) {
+			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
+		}
 		
 		cancerNet.getNameAlias();
 		
-		cancerNet.getNetwork();
+//		cancerNet.getNetwork();
 	}
 }
