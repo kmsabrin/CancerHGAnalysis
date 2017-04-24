@@ -278,14 +278,14 @@ public class CancerNetwork {
 		cancerNet.loadmiR429Target();
 		
 		cancerNet.stageData = new CancerData();
-		cancerNet.stageData.loadCancerData();
+		cancerNet.stageData.loadCancerData2();
 		cancerNet.stageData.nReplicas = 3;
 		cancerNet.stageData.getStageNoiseDistribution();
 		cancerNet.stageData.nReplicas = 9;
 		cancerNet.stageData.getSignificantStageValues(cancerNet.stageData.ncN429);
 		
 		for (int i: cancerNet.stageData.significantStageGenes.keySet()) {
-			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
+//			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
 		}
 		
 		cancerNet.getNameAlias();

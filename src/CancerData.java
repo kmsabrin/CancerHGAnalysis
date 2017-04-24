@@ -55,6 +55,12 @@ public class CancerData {
 			for (int stage = 0; stage < nStages; ++stage) {
 				List<Double> list429 = expData429.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
 				List<Double> listNC = expDataNC.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
+				
+				/** special check for what happens with 2 replicas only **/
+				list429.set(1, (list429.get(2) + list429.get(0)) / 2.0);
+				listNC.set(1, (listNC.get(2) + listNC.get(0)) / 2.0);
+				/*** end of check ***/
+				
 				for (double d429: list429) {
 					for (double dNC: listNC) {
 						if (stage > 0) {
@@ -160,7 +166,6 @@ public class CancerData {
 		}
 		pw.close();
 	}
-	
 	
 	public void getCDFDeltas() throws Exception {
 		for (int i = 0; i < nTransitions; ++i) {
@@ -634,11 +639,18 @@ public class CancerData {
 //					System.out.println("Found at stage " + stage + "\t" + probesetGeneMap.get(probeSetId));
 //					System.out.println(stageValueMap.get(probeSetId));
 //				}
+				
+				if (stage == 2) {
+					System.out.println(median);
+				}
 			}
 			
-			double w = 3;
+			double w = 8;
 			double threshold = Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
 			threshold *= w;
+			if (stage == 2) {
+				System.out.println((stageNoiseStD429[stage] * stageNoiseStD429[stage]) + "\t" + (stageNoiseStDNC[stage] * stageNoiseStDNC[stage]));
+			}
 			HashSet<String> emtSet = new HashSet();
 			HashSet<String> transGeneSet = new HashSet();
 			HashSet<String> downEMTGeneSet = new HashSet();
@@ -695,11 +707,13 @@ public class CancerData {
 //					+ "\t" 
 //					+ (downEMTGeneSet.size() * 1.0 / emtSet.size()));
 			
-			for (String s: transGeneSet) {
-//				System.out.println(s);
+			if (stage == 2) {
+				for (String s : transGeneSet) {
+//					System.out.println(s);
+				}
 			}
 //			System.out.println("### ### ###");
-			System.out.println(transGeneSet.size());
+//			System.out.println(transGeneSet.size());
 			
 			significantStageGenes.put(stage, new HashSet(transGeneSet));
 		}
@@ -913,8 +927,8 @@ public class CancerData {
 	
 	public static void main(String[] args) throws Exception {
 		CancerData cancerData = new CancerData();
-//		cancerData.loadCancerData();
-		cancerData.loadCancerData2();
+		cancerData.loadCancerData();
+//		cancerData.loadCancerData2();
 		
 //		cancerData.getGeneToProbesetHistogram();
 //		cancerData.getCDFExpVal();
