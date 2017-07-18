@@ -192,7 +192,6 @@ public class TwoDataAnalysis {
 				v[k++] = m;
 			}
 		}
-		
 		Arrays.sort(v);
 		d[0] = v[0];
 		d[1] = v[v.length - 1];

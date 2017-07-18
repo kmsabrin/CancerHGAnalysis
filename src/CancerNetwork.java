@@ -286,7 +286,7 @@ public class CancerNetwork {
 		cancerNet.stageData.getSignificantStageValues(cancerNet.stageData.ncN429);
 		
 		for (int i: cancerNet.stageData.significantStageGenes.keySet()) {
-//			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
+			System.out.println(i + "\t" + cancerNet.stageData.significantStageGenes.get(i).size());
 		}
 		
 		cancerNet.getNameAlias();

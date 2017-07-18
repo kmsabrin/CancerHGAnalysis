@@ -683,7 +683,6 @@ public class CancerData {
 				}
 				
 //				System.out.println(threshold + "\t" + w + "\t" + (threshold * w));
-//				threshold *= w;
 				
 //				if (probesetGeneMap.get(probeSetId).equals("CDH1")) {
 //					System.out.println("Stage " + stage + "\t" + probeSetId + "\t" + v + "\t" + threshold);
