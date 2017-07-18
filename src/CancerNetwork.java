@@ -121,6 +121,7 @@ public class CancerNetwork {
 			if (miR429Target.contains(s)) System.out.print("\t" + "target");
 			System.out.println();
 		}
+		System.out.println(stageData.significantStageGenes.get(2).size());
 	}
 	
 	private void getNetwork() {

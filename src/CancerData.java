@@ -56,9 +56,9 @@ public class CancerData {
 				List<Double> list429 = expData429.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
 				List<Double> listNC = expDataNC.get(s).subList(stage * oReplica, (stage + 1) * oReplica);
 				
-				/** special check for what happens with 2 replicas only **/
-				list429.set(1, (list429.get(2) + list429.get(0)) / 2.0);
-				listNC.set(1, (listNC.get(2) + listNC.get(0)) / 2.0);
+				/** special check for what happens with 2 replicas only FOR THE ORIGINAL DATASET**/
+//				list429.set(2, (list429.get(0) + list429.get(1)) / 2.0);
+//				listNC.set(2, (listNC.get(0) + listNC.get(1)) / 2.0);
 				/*** end of check ***/
 				
 				for (double d429: list429) {
@@ -213,7 +213,7 @@ public class CancerData {
 	
 	public void loadCancerData2() throws Exception {
 //		nProbesets = 54613;
-		Scanner scanner = new Scanner(new File("CancerData//5h_dataset.txt"));
+		Scanner scanner = new Scanner(new File("CancerData//5h_dataset_new.txt"));
 		scanner.nextLine();
 		while (scanner.hasNextLine()) {
 			String line = scanner.nextLine();
@@ -225,7 +225,7 @@ public class CancerData {
 			
 			// start= 2 (hey)
 			// start=12 (pc3) 
-			int startIdx = 2;
+			int startIdx = 12;
 			for (int i = 0; i <= 1; ++i) {
 				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx + i]));
 				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx + i]));
@@ -238,7 +238,7 @@ public class CancerData {
 
 			// 203= 6, 205= 8, 429=10 (hey)
 			// 203=16, 205=18, 429=20 (pc3)
-			startIdx = 10;
+			startIdx = 16;
 			for (int i = 0; i < 5 ; ++i) { // for 6 stage compatibility
 				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx]));
 				insertMappedList(expData429, probeSetId, Double.parseDouble(tokens[startIdx + 1]));
@@ -249,7 +249,7 @@ public class CancerData {
 			
 			// nc = 4 (hey)
 			// nc =14 (pc3)
-			startIdx = 4;
+			startIdx = 14;
 			for (int i = 0; i < 5; ++i) { // for 6 stage compatibility
 				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx]));
 				insertMappedList(expDataNC, probeSetId, Double.parseDouble(tokens[startIdx + 1]));
@@ -489,13 +489,27 @@ public class CancerData {
 			}
 			avg /= nReplicas;
 			for (int i = 0; i < nReplicas; ++i) {
-				if (Math.abs(avg - replicatedExpValues[i]) < 0.0001) continue; // two replica case;
+				/* ISSUE */
+//				if (Math.abs(avg - replicatedExpValues[i]) < 0.0001) continue; // two replica case;
 				noiseDistribution[k++] = avg - replicatedExpValues[i];
 			}
 		}
 		
 //		getCDFNoiseDistributionHelper(stage, noiseDistribution, id);
 		return Math.sqrt(StatUtils.variance(noiseDistribution));
+	}
+	
+	private double getProbesetVariance(HashMap<String, ArrayList<Double>> expData, int stage, String probeSet) {
+		int replicaAssumed = 3;
+		int startIndex = stage * replicaAssumed;
+		double a[] = new double[2];
+		a[0] = expData.get(probeSet).get(startIndex);
+		a[1] = expData.get(probeSet).get(startIndex + 1);
+		double var = StatUtils.variance(a);
+		if (stage == 2) {
+			System.out.print(a[0] + "\t" + a[1] + "\t" + Math.sqrt(var) + "\t");
+		}
+		return var;
 	}
 	
 	public void getStageNoiseDistribution() throws Exception {
@@ -640,17 +654,16 @@ public class CancerData {
 //					System.out.println(stageValueMap.get(probeSetId));
 //				}
 				
-				if (stage == 2) {
-					System.out.println(median);
-				}
+//				if (stage == 2) {
+//					System.out.println(median);
+//				}
 			}
 			
-			double w = 8;
-			double threshold = Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
-			threshold *= w;
-			if (stage == 2) {
-				System.out.println((stageNoiseStD429[stage] * stageNoiseStD429[stage]) + "\t" + (stageNoiseStDNC[stage] * stageNoiseStDNC[stage]));
-			}
+			double w = 10;
+			double threshold = w * Math.sqrt(stageNoiseStD429[stage] * stageNoiseStD429[stage] + stageNoiseStDNC[stage] * stageNoiseStDNC[stage]);
+//			if (stage == 2) {
+//				System.out.println((stageNoiseStD429[stage] * stageNoiseStD429[stage]) + "\t" + (stageNoiseStDNC[stage] * stageNoiseStDNC[stage]));
+//			}
 			HashSet<String> emtSet = new HashSet();
 			HashSet<String> transGeneSet = new HashSet();
 			HashSet<String> downEMTGeneSet = new HashSet();
@@ -658,13 +671,29 @@ public class CancerData {
 			for (String probeSetId : stageValueMap.keySet()) {
 				double v = stageValueMap.get(probeSetId);
 				
+				if (stage == 2) {
+//					System.out.print(probeSetId + "\t");
+				}
+				
+				/* special case for per probe-set threshold */
+//				threshold = Math.sqrt(getProbesetVariance(expData429, stage, probeSetId) + getProbesetVariance(expDataNC, stage, probeSetId));
+				
+				if (stage == 2) {
+//					System.out.println(Math.abs(v) + "\t" + threshold + "\t" + (Math.abs(v) / threshold));
+				}
+				
+//				System.out.println(threshold + "\t" + w + "\t" + (threshold * w));
+//				threshold *= w;
+				
 //				if (probesetGeneMap.get(probeSetId).equals("CDH1")) {
 //					System.out.println("Stage " + stage + "\t" + probeSetId + "\t" + v + "\t" + threshold);
 //				}
 			    
 				if (Math.abs(v) < threshold) {
+//					System.out.println(Math.abs(v) + "\t" + threshold);
 					continue;
 				}
+				
 				transGeneSet.add(probesetGeneMap.get(probeSetId));
 				stageGenes.add(probesetGeneMap.get(probeSetId));
 				if (emtGenes.contains(probesetGeneMap.get(probeSetId))) {
@@ -707,11 +736,12 @@ public class CancerData {
 //					+ "\t" 
 //					+ (downEMTGeneSet.size() * 1.0 / emtSet.size()));
 			
-			if (stage == 2) {
-				for (String s : transGeneSet) {
+//			if (stage == 2) {
+//				for (String s : transGeneSet) {
 //					System.out.println(s);
-				}
-			}
+//				}
+//			}
+			
 //			System.out.println("### ### ###");
 //			System.out.println(transGeneSet.size());
 			
@@ -927,8 +957,8 @@ public class CancerData {
 	
 	public static void main(String[] args) throws Exception {
 		CancerData cancerData = new CancerData();
-		cancerData.loadCancerData();
-//		cancerData.loadCancerData2();
+//		cancerData.loadCancerData();
+		cancerData.loadCancerData2();
 		
 //		cancerData.getGeneToProbesetHistogram();
 //		cancerData.getCDFExpVal();
